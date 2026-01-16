@@ -3,15 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UTD Career Agent - Chat</title>
+  <title>UTD Career Agent</title>
   <style>
     :root { --bg:#0b1020; --card:#121a33; --muted:#8ea0c7; --text:#e9eeff; --border:#253058; }
     * { box-sizing: border-box; }
     body {
-      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 800px at 20% 10%, #16224a, var(--bg));
-      color: var(--text);
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+    /* Background image */
+    background:
+        linear-gradient(
+        rgba(11,16,32,0.85),
+        rgba(11,16,32,0.85)
+        ),
+        url("campus.jpg");
+
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    color: var(--text);
     }
+
     .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px; }
     .header { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
     .title { display:flex; flex-direction:column; gap:4px; }
@@ -29,15 +44,7 @@
       display:flex; gap:10px; padding:12px;
       border-bottom: 1px solid rgba(37,48,88,.8);
       align-items:center; flex-wrap:wrap;
-    }
-    .bar input {
-      flex:1; min-width: 260px;
-      padding:10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(37,48,88,.9);
-      outline:none;
-      background: rgba(11,16,32,.65);
-      color: var(--text);
+      justify-content: space-between;
     }
     .btn {
       padding:10px 12px; border-radius: 12px;
@@ -67,7 +74,6 @@
     }
     .me { justify-content:flex-end; }
     .me .bubble { background: rgba(95,139,255,.18); border-color: rgba(95,139,255,.35); }
-    .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
     .composer {
       display:flex; gap:10px;
       padding: 12px;
@@ -92,18 +98,27 @@
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="title">
-        <h1>UTD Career Guiding Agent</h1>
-        <div class="sub">Static S3 frontend → API Gateway → Lambda</div>
-      </div>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <img
+      src="utd-logo.jpg"
+      alt="UTD Logo"
+      style="height:48px; width:auto; border-radius:6px;"
+    />
+    <div class="title">
+      <h1>UTD Career Guiding Agent</h1>
+      <div class="sub">Richardson, Dallas, Texas</div>
     </div>
+  </div>
+</div>
 
     <div class="card">
       <div class="bar">
-        <input id="apiBase" placeholder="API Base URL (e.g., https://xxxx.execute-api.us-east-1.amazonaws.com)" />
-        <button class="btn" id="saveBtn">Save</button>
-        <button class="btn" id="pingBtn">Ping</button>
-        <button class="btn" id="clearBtn">Clear</button>
+        <div style="color: var(--muted); font-size: 13px;">
+          API: <code id="apiLabel"></code>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" id="clearBtn">Clear</button>
+        </div>
       </div>
 
       <div class="chat" id="chat"></div>
@@ -114,20 +129,19 @@
       </div>
 
       <div class="status" id="status">
-        Tip: set your API base URL above. The UI posts to <code>/chat</code>.
+        <!-- Sends <code>{"question":"..."}</code> to <code>/chat</code>. -->
       </div>
     </div>
   </div>
 
 <script>
+  // ✅ Hardcoded API Gateway base (REST API with stage = /prod)
+  const API_BASE = "https://k8s474cafh.execute-api.us-east-1.amazonaws.com/prod";
+
   const chatEl = document.getElementById("chat");
   const inputEl = document.getElementById("input");
   const statusEl = document.getElementById("status");
-  const apiBaseEl = document.getElementById("apiBase");
-
-  // Load saved API base URL
-  const savedBase = localStorage.getItem("API_BASE_URL");
-  if (savedBase) apiBaseEl.value = savedBase;
+  document.getElementById("apiLabel").textContent = API_BASE;
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -144,33 +158,38 @@
     chatEl.scrollTop = chatEl.scrollHeight;
   }
 
-  function getBase() {
-    return (apiBaseEl.value || "").trim().replace(/\/$/, "");
-  }
-
-  async function postChat(message) {
-    const base = getBase();
-    if (!base) throw new Error("Missing API base URL. Paste it at the top and click Save.");
-
-    const url = base + "/chat";
+  async function postChat(userText) {
+    const url = API_BASE.replace(/\/$/, "") + "/chat";
 
     const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message })
+      // ✅ request shape you want
+      body: JSON.stringify({ question: userText })
     });
 
-    const text = await resp.text();
+    const raw = await resp.text();
     let data;
-    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    try { data = JSON.parse(raw); } catch { data = { raw }; }
 
     if (!resp.ok) {
-      const errMsg = data?.message || data?.error || text || ("HTTP " + resp.status);
+      const errMsg = data?.message || data?.error || raw || ("HTTP " + resp.status);
       throw new Error(errMsg);
     }
+    if (data.body) {
+    try {
+        const inner = JSON.parse(data.body);
+        return inner.answer ?? JSON.stringify(inner);
+    } catch {
+        return data.body;
+    }
+    }
 
-    // Expected shape: { reply: "..." }
-    return data.reply ?? data.response ?? data.answer ?? data.raw ?? JSON.stringify(data);
+    // fallback (if you later return direct JSON)
+    return data.answer ?? data.reply ?? data.response ?? JSON.stringify(data);
+
+    // ✅ prefer {answer: "..."} but keep fallbacks
+   
   }
 
   async function send() {
@@ -180,37 +199,21 @@
     addMessage("user", msg);
     inputEl.value = "";
     setStatus("Thinking...");
-
-    // typing placeholder
-    const typingId = "typing-" + Date.now();
     addMessage("assistant", "…");
 
     try {
-      const reply = await postChat(msg);
-
-      // replace last bubble (the "…")
+      const answer = await postChat(msg);
       const bubbles = chatEl.querySelectorAll(".bubble");
-      const last = bubbles[bubbles.length - 1];
-      last.textContent = reply;
-
+      bubbles[bubbles.length - 1].textContent = answer;
       setStatus("Done.");
     } catch (e) {
-      // replace last bubble with error
       const bubbles = chatEl.querySelectorAll(".bubble");
-      const last = bubbles[bubbles.length - 1];
-      last.textContent = "Error: " + (e?.message || String(e));
-      setStatus("Request failed (likely CORS or API route).");
+      bubbles[bubbles.length - 1].textContent = "Error: " + (e?.message || String(e));
+      setStatus("Request failed (most likely CORS or wrong route).");
     }
   }
 
-  // Buttons
   document.getElementById("sendBtn").onclick = send;
-
-  document.getElementById("saveBtn").onclick = () => {
-    const base = getBase();
-    localStorage.setItem("API_BASE_URL", base);
-    setStatus("Saved API base URL.");
-  };
 
   document.getElementById("clearBtn").onclick = () => {
     chatEl.innerHTML = "";
@@ -218,12 +221,9 @@
   };
 
   document.getElementById("pingBtn").onclick = async () => {
-    const base = getBase();
-    if (!base) return alert("Paste your API base URL first.");
     setStatus("Pinging /health ...");
-
     try {
-      const resp = await fetch(base + "/health", { method: "GET" });
+      const resp = await fetch(API_BASE.replace(/\/$/, "") + "/health", { method: "GET" });
       const t = await resp.text();
       setStatus("Ping status: HTTP " + resp.status);
       addMessage("assistant", "Ping /health:\n" + t);
@@ -233,7 +233,6 @@
     }
   };
 
-  // Enter to send, Shift+Enter for newline
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -241,8 +240,7 @@
     }
   });
 
-  // Welcome message
-  addMessage("assistant", "Hi! Set your API base URL above, click Save, then send a message.");
+  addMessage("assistant", "Hi! Ask me anything about UTD courses/careers.");
 </script>
 </body>
 </html>
