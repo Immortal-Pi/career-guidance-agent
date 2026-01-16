@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UTD Career Agent - Chat</title>
+  <style>
+    :root { --bg:#0b1020; --card:#121a33; --muted:#8ea0c7; --text:#e9eeff; --border:#253058; }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 20% 10%, #16224a, var(--bg));
+      color: var(--text);
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px; }
+    .header { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .title { display:flex; flex-direction:column; gap:4px; }
+    h1 { font-size: 20px; margin:0; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .card {
+      margin-top: 16px;
+      background: rgba(18,26,51,.85);
+      border: 1px solid rgba(37,48,88,.8);
+      border-radius: 16px;
+      box-shadow: 0 12px 36px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .bar {
+      display:flex; gap:10px; padding:12px;
+      border-bottom: 1px solid rgba(37,48,88,.8);
+      align-items:center; flex-wrap:wrap;
+    }
+    .bar input {
+      flex:1; min-width: 260px;
+      padding:10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(37,48,88,.9);
+      outline:none;
+      background: rgba(11,16,32,.65);
+      color: var(--text);
+    }
+    .btn {
+      padding:10px 12px; border-radius: 12px;
+      border: 1px solid rgba(37,48,88,.9);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      cursor:pointer;
+    }
+    .btn:hover { background: rgba(255,255,255,.10); }
+    .btn.primary { background: rgba(95,139,255,.18); border-color: rgba(95,139,255,.45); }
+    .btn.primary:hover { background: rgba(95,139,255,.26); }
+    .chat {
+      height: 62vh;
+      padding: 16px;
+      overflow:auto;
+    }
+    .msg { display:flex; margin: 10px 0; }
+    .bubble {
+      max-width: 78%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(37,48,88,.7);
+      background: rgba(11,16,32,.55);
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .me { justify-content:flex-end; }
+    .me .bubble { background: rgba(95,139,255,.18); border-color: rgba(95,139,255,.35); }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .composer {
+      display:flex; gap:10px;
+      padding: 12px;
+      border-top: 1px solid rgba(37,48,88,.8);
+      align-items:center;
+    }
+    textarea {
+      flex:1;
+      resize:none;
+      height: 44px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(37,48,88,.9);
+      outline:none;
+      background: rgba(11,16,32,.65);
+      color: var(--text);
+    }
+    .status { padding: 0 12px 12px; color: var(--muted); font-size: 12px; }
+    code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">
+        <h1>UTD Career Guiding Agent</h1>
+        <div class="sub">Static S3 frontend → API Gateway → Lambda</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <input id="apiBase" placeholder="API Base URL (e.g., https://xxxx.execute-api.us-east-1.amazonaws.com)" />
+        <button class="btn" id="saveBtn">Save</button>
+        <button class="btn" id="pingBtn">Ping</button>
+        <button class="btn" id="clearBtn">Clear</button>
+      </div>
+
+      <div class="chat" id="chat"></div>
+
+      <div class="composer">
+        <textarea id="input" placeholder="Type a message… (Enter to send, Shift+Enter for new line)"></textarea>
+        <button class="btn primary" id="sendBtn">Send</button>
+      </div>
+
+      <div class="status" id="status">
+        Tip: set your API base URL above. The UI posts to <code>/chat</code>.
+      </div>
+    </div>
+  </div>
+
+<script>
+  const chatEl = document.getElementById("chat");
+  const inputEl = document.getElementById("input");
+  const statusEl = document.getElementById("status");
+  const apiBaseEl = document.getElementById("apiBase");
+
+  // Load saved API base URL
+  const savedBase = localStorage.getItem("API_BASE_URL");
+  if (savedBase) apiBaseEl.value = savedBase;
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  function addMessage(role, text) {
+    const row = document.createElement("div");
+    row.className = "msg " + (role === "user" ? "me" : "bot");
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+
+    row.appendChild(bubble);
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function getBase() {
+    return (apiBaseEl.value || "").trim().replace(/\/$/, "");
+  }
+
+  async function postChat(message) {
+    const base = getBase();
+    if (!base) throw new Error("Missing API base URL. Paste it at the top and click Save.");
+
+    const url = base + "/chat";
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+    if (!resp.ok) {
+      const errMsg = data?.message || data?.error || text || ("HTTP " + resp.status);
+      throw new Error(errMsg);
+    }
+
+    // Expected shape: { reply: "..." }
+    return data.reply ?? data.response ?? data.answer ?? data.raw ?? JSON.stringify(data);
+  }
+
+  async function send() {
+    const msg = inputEl.value.trim();
+    if (!msg) return;
+
+    addMessage("user", msg);
+    inputEl.value = "";
+    setStatus("Thinking...");
+
+    // typing placeholder
+    const typingId = "typing-" + Date.now();
+    addMessage("assistant", "…");
+
+    try {
+      const reply = await postChat(msg);
+
+      // replace last bubble (the "…")
+      const bubbles = chatEl.querySelectorAll(".bubble");
+      const last = bubbles[bubbles.length - 1];
+      last.textContent = reply;
+
+      setStatus("Done.");
+    } catch (e) {
+      // replace last bubble with error
+      const bubbles = chatEl.querySelectorAll(".bubble");
+      const last = bubbles[bubbles.length - 1];
+      last.textContent = "Error: " + (e?.message || String(e));
+      setStatus("Request failed (likely CORS or API route).");
+    }
+  }
+
+  // Buttons
+  document.getElementById("sendBtn").onclick = send;
+
+  document.getElementById("saveBtn").onclick = () => {
+    const base = getBase();
+    localStorage.setItem("API_BASE_URL", base);
+    setStatus("Saved API base URL.");
+  };
+
+  document.getElementById("clearBtn").onclick = () => {
+    chatEl.innerHTML = "";
+    setStatus("Cleared chat.");
+  };
+
+  document.getElementById("pingBtn").onclick = async () => {
+    const base = getBase();
+    if (!base) return alert("Paste your API base URL first.");
+    setStatus("Pinging /health ...");
+
+    try {
+      const resp = await fetch(base + "/health", { method: "GET" });
+      const t = await resp.text();
+      setStatus("Ping status: HTTP " + resp.status);
+      addMessage("assistant", "Ping /health:\n" + t);
+    } catch (e) {
+      setStatus("Ping failed (CORS or endpoint).");
+      addMessage("assistant", "Ping error: " + (e?.message || String(e)));
+    }
+  };
+
+  // Enter to send, Shift+Enter for newline
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+
+  // Welcome message
+  addMessage("assistant", "Hi! Set your API base URL above, click Save, then send a message.");
+</script>
+</body>
+</html>

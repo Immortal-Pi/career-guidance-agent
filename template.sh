@@ -15,7 +15,6 @@ mkdir -p shared
 mkdir -p shared/agent_core
 mkdir -p web
 mkdir -p scripts
-mkdir -p docs
 
 # creating files 
 touch services/scraper_lambda/requirements.txt
