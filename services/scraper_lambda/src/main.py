@@ -7,7 +7,7 @@ import html2text
 import boto3
 from helper.clean_data import clean_text
 # -------- config (reuse your keys/values) --------
-S3_BUCKET         = os.environ.get("S3_BUCKET", "utd-catalog-tokenaughts")
+S3_BUCKET         = os.environ.get("S3_BUCKET", "utd-catalog-amruth")
 SEED_URL          = os.environ.get("SEED_URL", "https://catalog.utdallas.edu/2025/graduate/courses")
 INCLUDE_FRAGMENT  = os.environ.get("INCLUDE_FRAGMENT", "/courses/")    # keep only links that contain this
 RATE_SLEEP        = float(os.environ.get("RATE_SLEEP", "0.25"))

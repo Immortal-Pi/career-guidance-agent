@@ -7,13 +7,15 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1
 
 # Copy and install Python deps
-COPY requirements.txt ${LAMBDA_TASK_ROOT}/
+# COPY requirements.txt ${LAMBDA_TASK_ROOT}/
+COPY requirements.txt .
 RUN python -m pip install --upgrade pip \
  && python -m pip install -r requirements.txt
 
 # Copy your app code (assumes your handler is main.handler)
 # If your file is named differently, adjust the CMD below.
-COPY src/ ${LAMBDA_TASK_ROOT}/
+# COPY src/ ${LAMBDA_TASK_ROOT}/
+COPY src/ .
 
 # Tune HTTP client behavior (optional)
 ENV UV_HTTP2=1 \
