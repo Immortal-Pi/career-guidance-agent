@@ -1,0 +1,4 @@
+httpx[http2]==0.27.2
+selectolax==0.3.25
+html2text==2024.2.26
+boto3==1.35.36
