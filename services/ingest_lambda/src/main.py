@@ -3,7 +3,7 @@ import json
 import hashlib
 from array import array
 from typing import List, Dict, Any
-
+import json, urllib.parse, traceback
 import boto3
 
 # --------- Clients ----------
@@ -139,68 +139,107 @@ def _put_vectors(vectors: List[Dict[str, Any]]) -> None:
             vectors=batch,
         )
 
+def _extract_bucket_key(event: dict):
+    # S3 Event Notification (most likely your case)
+    recs = event.get("Records") or []
+    if recs:
+        s3rec = recs[0].get("s3") or {}
+        bucket = (s3rec.get("bucket") or {}).get("name")
+        key = (s3rec.get("object") or {}).get("key")
+        if key:
+            key = urllib.parse.unquote_plus(key)
+        return bucket, key
+
+    # EventBridge S3 (fallback)
+    d = event.get("detail") or {}
+    bucket = (d.get("bucket") or {}).get("name")
+    key = (d.get("object") or {}).get("key")
+    if bucket and key:
+        return bucket, key
+
+    return None, None
+
 
 def handler(event, context):
-    # EventBridge S3 event: bucket + object key live under event["detail"]
-    detail = event.get("detail", {})
-    bucket = detail.get("bucket", {}).get("name")
-    key = detail.get("object", {}).get("key")
+    try:
+        print("EVENT:", json.dumps(event)[:4000])
 
-    if not bucket or not key:
-        return {"ok": False, "reason": "Missing bucket/key in event", "event": event}
+        bucket, key = _extract_bucket_key(event)
+        print("PARSED bucket/key:", bucket, key)
 
-    # Optional: only process markdown files
-    if not key.lower().endswith(".md"):
-        return {"ok": True, "skipped": True, "reason": "Not .md", "key": key}
+        if not bucket or not key:
+            raise RuntimeError("Could not parse bucket/key from event")
 
-    # Read document
-    text = _read_text_from_s3(bucket, key)
-    if not text.strip():
-        return {"ok": True, "skipped": True, "reason": "Empty file", "key": key}
+        if not key.lower().endswith(".md"):
+            print("SKIP: not md", key)
+            return {"ok": True, "skipped": True, "reason": "not md"}
 
-    doc_id = _sha1(key)
+        # Add a single checkpoint so you know it reached here
+        print("OK: will ingest", bucket, key)
+        # EventBridge S3 event: bucket + object key live under event["detail"]
+        detail = event.get("detail", {})
+        bucket = detail.get("bucket", {}).get("name")
+        key = detail.get("object", {}).get("key")
 
-    # Load old manifest & delete old vectors for this doc
-    old_vector_keys = _load_manifest(doc_id)
-    _delete_old_vectors(old_vector_keys)
+        if not bucket or not key:
+            return {"ok": False, "reason": "Missing bucket/key in event", "event": event}
 
-    # Chunk
-    chunks = _chunk_text(text, CHUNK_MAX_CHARS, CHUNK_OVERLAP_CHARS)
+        # Optional: only process markdown files
+        if not key.lower().endswith(".md"):
+            return {"ok": True, "skipped": True, "reason": "Not .md", "key": key}
 
-    # Embed + build vectors
-    vectors = []
-    new_vector_keys = []
+        # Read document
+        text = _read_text_from_s3(bucket, key)
+        if not text.strip():
+            return {"ok": True, "skipped": True, "reason": "Empty file", "key": key}
 
-    for idx, chunk in enumerate(chunks):
-        emb = _embed_titan(chunk)
-        vkey = f"{doc_id}:{idx}"
-        new_vector_keys.append(vkey)
+        doc_id = _sha1(key)
 
-        vectors.append(
-            {
-                "key": vkey,
-                "data": {"float32": emb},
-                "metadata": {
-                    "s3_bucket": bucket,
-                    "s3_key": key,
-                    "doc_id": doc_id,
-                    "chunk_index": idx,
-                    "text": chunk[:1000],  # keep metadata small; store preview only
-                },
-            }
-        )
+        # Load old manifest & delete old vectors for this doc
+        old_vector_keys = _load_manifest(doc_id)
+        _delete_old_vectors(old_vector_keys)
 
-    # Write vectors
-    _put_vectors(vectors)
+        # Chunk
+        chunks = _chunk_text(text, CHUNK_MAX_CHARS, CHUNK_OVERLAP_CHARS)
 
-    # Save manifest
-    _save_manifest(doc_id, new_vector_keys)
+        # Embed + build vectors
+        vectors = []
+        new_vector_keys = []
 
-    return {
-        "ok": True,
-        "bucket": bucket,
-        "key": key,
-        "doc_id": doc_id,
-        "chunks": len(chunks),
-        "vectors_written": len(vectors),
-    }
+        for idx, chunk in enumerate(chunks):
+            emb = _embed_titan(chunk)
+            vkey = f"{doc_id}:{idx}"
+            new_vector_keys.append(vkey)
+
+            vectors.append(
+                {
+                    "key": vkey,
+                    "data": {"float32": emb},
+                    "metadata": {
+                        "s3_bucket": bucket,
+                        "s3_key": key,
+                        "doc_id": doc_id,
+                        "chunk_index": idx,
+                        "text": chunk[:1000],  # keep metadata small; store preview only
+                    },
+                }
+            )
+
+        # Write vectors
+        _put_vectors(vectors)
+
+        # Save manifest
+        _save_manifest(doc_id, new_vector_keys)
+
+        return {
+            "ok": True,
+            "bucket": bucket,
+            "key": key,
+            "doc_id": doc_id,
+            "chunks": len(chunks),
+            "vectors_written": len(vectors),
+        }
+    except Exception as e:
+        print("ERROR:", str(e))
+        print(traceback.format_exc())
+        raise
