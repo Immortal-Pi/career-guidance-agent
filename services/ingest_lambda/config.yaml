@@ -1,0 +1,9 @@
+SOURCE_BUCKET: utd-catalog-amruth
+VECTOR_BUCKET_NAME: utd-catalog-vectors-immortalpi
+VECTOR_INDEX_NAME: utd-catalog
+MANIFEST_BUCKET: utd-catalog-amruth
+MANIFEST_PREFIX: manifests/
+BEDROCK_MODEL_ID: amazon.titan-embed-text-v2:0
+CHUNK_MAX_CHARS: 12000
+CHUNK_OVERLAP_CHARS: 800
+UPSERT_BATCH_SIZE: 50
