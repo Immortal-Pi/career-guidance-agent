@@ -2,11 +2,13 @@ import json
 import base64
 from graph import build_graph
 
-graph = build_graph()
+graph = None
 
 def lambda_handler(event, context):
     question = ""
-
+    global graph
+    if graph is None:
+        graph=build_graph()
     # ---- Case 1: API Gateway invocation ----
     body = event.get("body")
     if body is not None:

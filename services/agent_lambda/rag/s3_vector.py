@@ -28,29 +28,35 @@ def retrieve_utd_context(question: str) -> str:
     qvec = _embed_query(question)
 
     resp = s3vectors.query_vectors(
-        IndexArn=S3V_INDEX_ARN,
-        QueryVector=qvec,
-        TopK=TOP_K,
+        indexArn=S3V_INDEX_ARN,
+        topK=TOP_K,
+        queryVector={"float32": qvec},
+        returnMetadata=True,
+        returnDistance=True,
     )
 
+    vectors = resp.get("vectors", [])
     chunks = []
-    for v in resp.get("Vectors", []):
-        md = v.get("Metadata", {}) or {}
 
-        # Option A: chunk text stored directly in vector metadata
-        if isinstance(md.get("text"), str) and md["text"].strip():
-            chunks.append(md["text"].strip())
+    for v in vectors:
+        md = v.get("metadata") or v.get("Metadata") or {}
+
+        # text stored directly
+        txt = md.get("text")
+        if isinstance(txt, str) and txt.strip():
+            chunks.append(txt.strip())
             continue
 
-        # Option B: store pointer to original chunk in S3
-        b = md.get("bucket")
-        k = md.get("key")
+        # pointer stored
+        b = md.get("bucket") or md.get("source_bucket")
+        k = md.get("key") or md.get("source_key")
         if b and k:
             obj = s3.get_object(Bucket=b, Key=k)
             raw = obj["Body"].read().decode("utf-8", errors="ignore")
             chunks.append(raw)
 
     return "\n\n---\n\n".join(chunks[:TOP_K])
+
 
 
 def bedrock_synthesize_answer(question: str, utd_context: str, jobs: dict, web: dict) -> str:
