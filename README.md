@@ -135,6 +135,28 @@ TOP_K=
 - Enter a question related to UTD courses or careers
 - View AI‑generated guidance instantly
 
+---
+## building lambda docker 
+
+```
+REGION=us-east-1
+ACCOUNT_ID=
+REPO_NAME=utd-career-guiding-agent
+TAG=agent_lambda_v1
+
+ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO_NAME:$TAG"
+
+aws ecr get-login-password --region $REGION \
+  | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
+docker buildx build \
+  --platform linux/amd64 \
+  --provenance=false \
+  --sbom=false \
+  -t "$ECR_URI" \
+  --push \
+  .
+```
 
 ---
 
@@ -183,65 +205,3 @@ MIT License
 ---
 
 **Built with ❤️ for UTD students navigating careers in tech & AI**
-
-
-
-
-## web scrapping lambda docker container instruction 
-
-docker build -t my-lambda:latest .
-docker run --rm -p 9000:8080 my-lambda:latest
-
-
-- create ECR 
-
-aws ecr get-login-password --region us-east-1 \
-  | docker login --username AWS --password-stdin 011528265658.dkr.ecr.us-east-1.amazonaws.com
-
-
-REGION=us-east-1
-ACCOUNT_ID=011528265658
-REPO_NAME=utd-career-guiding-agent
-TAG=langgraph-v1
-
-ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO_NAME:$TAG"
-
-# Build single-arch amd64, disable provenance/SBOM (prevents OCI index/attestations)
-docker buildx build \
-  --platform linux/amd64 \
-  --provenance=false \
-  --sbom=false \
-  -t "$ECR_URI" \
-  --push \
-  .
-
-
-
-
-# Bulding the Agent langgraph docker for lambda function 
-
-docker build -t utd-langgraph-chat .
-
-REGION=us-east-1
-ACCOUNT_ID=011528265658
-REPO_NAME=utd-career-guiding-agent
-TAG=langraph-amd64-v5
-
-ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO_NAME:$TAG"
-
-aws ecr get-login-password --region $REGION \
-  | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
-
-docker buildx build \
-  --platform linux/amd64 \
-  --provenance=false \
-  --sbom=false \
-  -t "$ECR_URI" \
-  --push \
-  .
-
-
-# agent request 
-{
-  "question": "I am a UTD student interested in AI engineering. Recommend relevant courses and 3 project ideas based on current job demand in Dallas."
-}
