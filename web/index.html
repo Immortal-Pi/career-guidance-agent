@@ -92,6 +92,9 @@
       color: var(--text);
     }
     .status { padding: 0 12px 12px; color: var(--muted); font-size: 12px; }
+    .chat {
+      scroll-behavior: smooth;
+      }
     code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 8px; }
   </style>
 </head>
@@ -187,7 +190,9 @@
   document.getElementById("apiLabel").textContent = API_BASE;
 
   function setStatus(msg) { statusEl.textContent = msg; }
-
+  function scrollToBottom() {
+    chatEl.scrollTop = chatEl.scrollHeight;
+  } 
   function addMessage(role, text) {
     const row = document.createElement("div");
     row.className = "msg " + (role === "user" ? "me" : "bot");
@@ -199,6 +204,7 @@
     row.appendChild(bubble);
     chatEl.appendChild(row);
     chatEl.scrollTop = chatEl.scrollHeight;
+    scrollToBottom();
   }
 
   async function postChat(userText) {
@@ -248,10 +254,12 @@
       const answer = await postChat(msg);
       const bubbles = chatEl.querySelectorAll(".bubble");
       bubbles[bubbles.length - 1].textContent = answer;
+      scrollToBottom(); 
       setStatus("Done.");
     } catch (e) {
       const bubbles = chatEl.querySelectorAll(".bubble");
       bubbles[bubbles.length - 1].textContent = "Error: " + (e?.message || String(e));
+      scrollToBottom();
       setStatus("Request failed (most likely CORS or wrong route).");
     }
   }

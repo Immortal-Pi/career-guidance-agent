@@ -18,7 +18,7 @@ def serpapi_google_jobs(query: str, location: str = "Dallas, TX", num_results: i
     r = requests.get(SERPAPI_ENDPOINT, params=params, timeout=20)
     r.raise_for_status()
     data = r.json()
-
+    print(f'SerpAPI data: {data}')
     # Normalize top jobs
     jobs = []
     for j in (data.get("jobs_results") or [])[:num_results]:
