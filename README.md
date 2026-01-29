@@ -7,6 +7,10 @@ This project scrapes official UTD course catalogs, ingests them into a vector da
 > *"Which UTD courses are best for AI Engineer roles?"*  
 > *"What skills should I build for data science internships?"*
 
+
+![UTD Career Guiding Agent](https://github.com/Immortal-Pi/career-guidance-agent/blob/main/assets/chat.png?raw=true) 
+
+![UTD Career Guiding Agent](https://github.com/Immortal-Pi/career-guidance-agent/blob/main/assets/chat1.png?raw=true) 
 ---
 
 ## Key Features
@@ -61,7 +65,7 @@ Final Answer
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 utd-career-guiding-agent/
@@ -131,9 +135,6 @@ TOP_K=
 - Enter a question related to UTD courses or careers
 - View AI‑generated guidance instantly
 
-![UTD Career Guiding Agent](https://github.com/Immortal-Pi/career-guidance-agent/blob/main/assets/chat.png?raw=true) 
-
-![UTD Career Guiding Agent](https://github.com/Immortal-Pi/career-guidance-agent/blob/main/assets/chat1.png?raw=true) 
 
 ---
 
