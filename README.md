@@ -1,4 +1,6 @@
-# UTD Career Guiding Agent
+# UTD Career Guiding Agent 
+
+![architecture](https://github.com/Immortal-Pi/career-guidance-agent/blob/main/assets/UTD%20career%20guiding%20agent.png?raw=true)
 
 An **AI‑powered career guidance system for UT Dallas students**, designed to answer questions about **courses, careers, job market trends, and skill paths** using a Retrieval‑Augmented Generation (RAG) + Agentic AI architecture — fully built on **AWS using Python (no Node.js)**.
 
